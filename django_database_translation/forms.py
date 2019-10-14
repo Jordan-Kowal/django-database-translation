@@ -69,7 +69,7 @@ class DynamicTranslationForm(forms.ModelForm):
         """
         obj = self.instance
         information = []
-        translations = obj.get_translations_all_languages()
+        translations = obj.get_translations()
         for translation in translations:
             fieldname = create_translation_fieldname(translation)
             information.append({
