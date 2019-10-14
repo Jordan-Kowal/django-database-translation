@@ -1,0 +1,67 @@
+### VSCode ###
+.vscode
+
+### Django ###
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+*.sqlite3
+**/media/*
+!**/media/core
+
+### Virtual Environment ###
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version # Python versioning
+
+### Packaging ###
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+### PyInstaller ###
+*.manifest
+*.spec
+
+### Installer Logs ###
+pip-log.txt
+pip-delete-this-directory.txt
+
+### Testing ###
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+### Translation ###
+# *.mo
