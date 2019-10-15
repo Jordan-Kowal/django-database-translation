@@ -25,13 +25,17 @@ Here's a quick recap of what this package contains:
   - `Item` (ddt_items)
   - `Language` (ddt_languages)
   - `Translation` (ddt_translations)
-- A few class extenders:
-  - `TranslatedAdmin` to extend your admins
-  - `TranslatedModel` to extend your models (also provides many useful methods)
-- Some utility:
+- A few class extenders/templates:
+  - `TranslatedField` which is a Field that will be used for any field that must be translated
+  - `TranslatedModel` to extend any model that has at least one `TranslatedField`
+  - `TranslatedAdmin` to extend any admin whose model uses `TranslatedModel`
+- A few tools for language selection:
   - `LanguageSelection`, a form that can be used in the frontend to pick a language
   - `update_user_language`, a function that updates the user language for both django and our app
-  - `get_translation_from_item`, useful if you need to translate an item BEFORE sending it as JSON
+- A few tools for getting translations
+  - `all_instances_as_translated_dict`, returns all given instances as a dict, with all of their translatable-fields translated
+  - `get_translation_from_item`, returns a translated value for a specific field
+  - `instance_as_translated_dict`, returns an instance as a dict with all of its translatable-fields translated
 
 It contains other elements, but this is what you will be using 99% of the time.
 
@@ -81,6 +85,8 @@ class Project(TranslatedModel):  # <-- Extended class
     )
 ```
 
+Once you're all done, run the `makemigrations` and `migrate` commands to update your own database with your new changes.
+
 ### **3. Updating your admins**
 Now that our models have been updated, we can update their admins. Note that you must only update the admins of models that have been extended with `TranslatedModel`.
 
@@ -95,7 +101,7 @@ class ProjectAdmin(TranslatedAdmin):  # <-- Extended class
 
 Now you will be able to edit translations directly from your admins.
 
-### **4. Setting up the database**
+### **4. Manually fills Language and Field in the admin**
 Now we need to manually create a few entries in both our `Language` and `Field` models. Do not worry about `Item` and `Translation`, their content will be generated automatically.
 
 #### **--> Language**
@@ -113,62 +119,34 @@ LANGUAGES = (
 #### **--> Field**
 Here you must simply register all the fields you've changed to `TranslatedField`. Make sure their name matches the actual name of the field.
 
-#### **--> Sidenote**
-If you already had database entries in your models, you'll notice that the `Translation` model already has a bunch of entry. Technically, an entry has been created for each of your model entry, in each language, and for each field.
-
 ### **5. Translate your entries**
-Now that everthing is setup, you can go in your admin and go in any of your database entry. If it is a model that uses `TranslatedModel` and its admin is `TranslatedAdmin`, you'll be able to see the translations directly in its admin. Go ahead and translate anything that must be translated.
+Now that everything is setup, you can go in your admin and go in any of your database entry. If it is a model that uses `TranslatedModel` and its admin is `TranslatedAdmin`, you'll be able to see the translations directly in its admin. Go ahead and translate anything that must be translated.
 
 ### **6. Displaying translations**
-There are two ways of displaying translations for your users:
-- If you're using a templating system (HTML), then you can simply load our custom tag `{% load ddt_tags %}` and then use `{% db_trans item %}` where "item" is your `TranslatedField`
-- However, if you're using AJAX/JSON, you need to handle the translation beforehand. To do so, you can use the `get_translation_from_item` function from `django_database_translation.utils`
+There are going to be two cases for handling your translations. Whether you are using django views and rendering templates, or using AJAX views and pushing JSON data, your translation process is going to be fairly similar. You can use either of the following 3 functions from `django_database_translation.utils`:
 
-Here's the code of the function:
+**1)** If you ever need to get the current Language instance associated with your user, you can use `get_language_from_session(request)` (which returns the Language instance).
 
-```python
-def get_translation_from_item(item=None, item_id=None, language=None, language_id=None, as_text=False):
-    """
-    Description:
-        Returns a Translation object or text when given an Item and a Language
-        You must provide either "item" or "item_id"
-        You must provide either "language" or "language_id"
-    Args:
-        item (Item, optional): Item instance from the translation app. Defaults to None.
-        item_id (int, optional): ID of the Item instance. Defaults to None.
-        language (Language, optional): Language instance from the translation app. Defaults to None.
-        language_id (int, optional): ID of the Language instance. Defaults to None.
-        as_text (bool, optional): Indicates whether to return the instance or its text. Defaults to False.
-    Raises:
-        TypeError: must provide either 'item' or 'item_id'
-        TypeError: must provide either 'language' or 'language_id'
-    Returns:
-        Translation/String/None: Either a Translation instance, the Translation's text, or None
-    """
-    # Checking if we have the right parameters
-    if (not item and not item_id) or (item and item_id):
-        raise TypeError("You must provide either 'item' or 'item_id'. Not none, nor both.")
-    if (not language and not language_id) or (language and language_id):
-        raise TypeError("You must provide either 'language' or 'language_id'. Not none, nor both.")
-    # Keeping only one of each
-    params = {
-        "item": item,
-        "item_id": item_id,
-        "language": language,
-        "language_id": language_id,
-    }
-    params = {key: value for key, value in params.items() if value}
-    # Finding the translation instance and returning it
-    try:
-        translation_model = apps.get_model("django_database_translation", "Translation", True)
-        translation = translation_model.objects.get(**params)
-        if as_text:
-            return translation.text
-        else:
-            return translation
-    except translation_model.DoesNotExist:
-        return None
-```
+**2)** For translating ONE instance, use `instance_as_translated_dict(request, instance, depth=True, language=None)`, where:
+- `request` is a HttpRequest item from Django
+- `instance` is your model instance
+- `depth` is a bool
+- `language` is the current Language instance. If not provided, the function will automatically call `get_language_from_session`
+
+It will return your instance as a dictionnary, with all of its fields/values using the following logic:
+- Any `TranslatedField` will be translated
+- Any `ForeignKey` field will either contains the ID or a sub-dictionnary (based on `depth`)
+- Any `ImageField` will be turned into a subdict with its `path`, `url`, and `name`
+- Any other field will simply have its original value.
+
+Using `depth`, it will also apply the function to any foreign key that is found. So if you have a `Project` model with a foreign key to a `Category` model, you will still be able to do `project.category.name` in your templating system.
+
+**3)** `all_instances_as_translated_dict(request, instances, depth=True, language=None)` is the same as `instance_as_translated_dict` except that:
+- It takes a ITERABLE of instances instead of 1 instance
+- It returns a LIST of dicts, one for each instance
+
+It is basically a shortcut to apply `instance_as_translated_dict` to several instances.
+
 
 ## **Addtionnal information**
 
