@@ -3,9 +3,9 @@
 Description:
     Contains helper functions to assist you when working with database translations
 Functions:
-    all_instances_as_translated_dict: Transforms an iterable of mode instances into a list of dicts
+    all_instances_as_translated_dict: Applies 'instance_as_translated_dict' to the iterable of instances
     get_language_from_session: Returns the Language instance used by our user, or "False" if none is found
-    instance_as_translated_dict: Transforms (returns) a model instance into a dict containing all of its fields
+    instance_as_translated_dict: Returns a model instance into a dict containing all of its fields
     update_user_language: Updates the user current language following Django guildelines
 """
 
@@ -17,7 +17,7 @@ Functions:
 
 # Django
 from django.db import models
-from django.db.models.fields.files import ImageFieldFile
+from django.db.models.fields.files import ImageFieldFile, FieldFile
 from django.utils.translation import activate, LANGUAGE_SESSION_KEY
 
 # Third-party
@@ -32,11 +32,9 @@ from .models import Item, Language, Translation
 def all_instances_as_translated_dict(instances, depth=True, language=None, request=None):
     """
     Description:
-        Transforms an iterable of mode instances into a list of dicts
-        Each model instance will be turned into a dict containing all of its fields/values
-        Language can be given as an argument, or guess through the user of "request"
-        With "depth" set to True, ForeignKey will also be transformed into sub-dict
-        Meaning you will be able to manipulate the dict in an HTML template much like an instance
+        Applies 'instance_as_translated_dict' to the iterable of instances
+        Returns a list of dicts which contains the fields of all your instances
+        Check the 'instance_as_translated_dict' for more info
     Args:
         instances (iterable): An iterable of your model instances
         depth (bool, optional): Determines if FK will also be transformed into dicts. Defaults to True.
@@ -81,9 +79,10 @@ def get_language_from_session(request):
 def instance_as_translated_dict(instance, depth=True, language=None, request=None):
     """
     Description:
-        Transforms (returns) a model instance into a dict containing all of its fields
+        Returns a model instance into a dict containing all of its fields
         Language can be given as an argument, or guess through the user of "request"
         With "depth" set to True, ForeignKey will also be transformed into sub-dict
+        Files and images are replaced by a subdict with 'path', 'url', and 'name' keys
         Meaning you will be able to manipulate the dict in an HTML template much like an instance
     Args:
         instance (Model): An instance from any of your models
@@ -116,7 +115,7 @@ def instance_as_translated_dict(instance, depth=True, language=None, request=Non
                 else:
                     new_value = value
             # Case 3:
-            elif value_type == ImageFieldFile:
+            elif value_type in {ImageFieldFile, FieldFile}:
                 if value:
                     new_value = {
                         "name": getattr(value, "name", ""),
