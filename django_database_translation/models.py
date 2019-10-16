@@ -33,7 +33,8 @@ from django.db import models
 # Third-party
 
 # Local
-from .utils import ForeignKeyCascade, NoBulkCreateManager, NotEmptyCharField
+from .fields import ForeignKeyCascade, NotEmptyCharField
+from .managers import NoBulkCreateManager
 
 
 # --------------------------------------------------------------------------------
@@ -82,32 +83,6 @@ class TranslatedModel(models.Model):
     # ----------------------------------------
     # Custom Methods
     # ----------------------------------------
-    def dict_with_translations(self, language=None, language_id=None):
-        """
-        Description:
-            Returns the instance fields as a dict, with added fields for the translations
-            Note that if a translated field is called "name", you will have two fields:
-            - 'name' that contains the actual translation
-            - 'name_id' that contains the foreign key to Item
-        Args:
-            language (Language, optional): A Language instance (from the translation app). Defaults to None.
-            language_id (int, optional): A PK from the Language model. Defaults to None.
-        Returns:
-            dict: Dict with the instance fields and translation fields as keys
-        """
-        # Get instance fields as dict and clean it up
-        field_dict = self.__dict__.copy()
-        field_dict.pop('_state', None)
-        # Get the Language instance
-        if language is None:
-            language = Language.objects.get(pk=language_id)
-        # Add fields with the correct translations to the dict
-        translated_fields = self.get_translated_fields()
-        for field in translated_fields:
-            translation = self.get_translation(field=field, language=language)
-            field_dict[field.name] = translation.text
-        return field_dict
-
     def get_content_type_instance(self):
         """Returns the ContentType instance of our object"""
         app = self._meta.app_label.lower()
@@ -115,41 +90,11 @@ class TranslatedModel(models.Model):
         content_type = ContentType.objects.get(app_label=app, model=model)
         return content_type
 
-    def get_translated_field(self, field_name):
-        """
-        Description:
-            Returns the Field instance associated with our object, whose name matches our 'field_name'
-        Args:
-            field_name (str): Name of the field we are looking for
-        Returns:
-            Field: Field instance from the translation app
-        """
-        content_type = self.get_content_type_instance()
-        field = Field.objects.get(content_type=content_type, name=field_name)
-        return field
-
     def get_translated_fields(self):
         """Returns a QuerySet of all the Field instances associated with the Model of our instance"""
         content_type = self.get_content_type_instance()
         fields = Field.objects.filter(content_type=content_type)
         return fields
-
-    def get_translated_item(self, field=None, field_name=None):
-        """
-        Description:
-            Returns an Item instance that maches our instance's PK and a specific field
-            The field can be given either through a Field instance, or a field_name
-            'field' takes the upperhand over 'field_name'
-        Args:
-            field (Field, optional): Field instance from the translation app. Defaults to None.
-            field_name (str, optional): The name of the field. Defaults to None.
-        Returns:
-            Item: An Item instance from the translation app
-        """
-        if field is None:
-            field = self.get_translated_field(field_name)
-        item = Item.objects.get(object_id=self.id, field=field)
-        return item
 
     def get_translated_items(self):
         """Returns a QuerySet of all the Item instances associated with our instance"""
@@ -157,45 +102,8 @@ class TranslatedModel(models.Model):
         items = Item.objects.filter(object_id=self.id, field__in=fields)
         return items
 
-    def get_translation(self, field=None, field_name=None, language=None, language_id=None):
-        """
-        Description:
-            Returns a single Translation instance for a given field/language, associated with our object
-            For the field, either provide the instance or its name
-            For the language, either provide the instance or its id
-            Note that the instance always takes the upperhand over the id/name
-        Args:
-            field (Field, optional): Field instance from the translation app. Defaults to None.
-            field_name (str, optional): The name of the field. Defaults to None.
-            language (Language, optional): A Language instance (from the translation app). Defaults to None.
-            language_id (int, optional): A PK from the Language model. Defaults to None.
-        Returns:
-            Translation: Translation instance from the translation app
-        """
-        item = self.get_translated_item(field=field, field_name=field_name)
-        if language is None:
-            language = Language.objects.get(pk=language_id)
-        translation = Translation.objects.get(item=item, language=language)
-        return translation
-
-    def get_translations(self, language=None, language_id=None):
-        """
-        Description:
-            Returns a QuerySet of all the available Translation instances for our object, in a given language
-            For the language, either provide the instance or its id (note that the instance takes the upperhand)
-        Args:
-            language (Language, optional): A Language instance (from the translation app). Defaults to None.
-            language_id (int, optional): A PK from the Language model. Defaults to None.
-        Returns:
-            QuerySet(Translation): Query set of Translation instances from the translation app
-        """
-        items = self.get_translated_items()
-        if language is None:
-            language = Language.objects.get(pk=language_id)
-        translations = Translation.objects.filter(language=language, item__in=items)
-        return translations
-
-    def get_translations_all_languages(self):
+    def get_translations(self):
+        """Returns a QuerySet of all the Translation instances associated with our instance"""
         items = self.get_translated_items()
         translations = Translation.objects.filter(item__in=items)
         return translations

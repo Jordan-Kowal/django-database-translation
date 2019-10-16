@@ -156,7 +156,7 @@ class TranslatedAdmin(admin.ModelAdmin):
             obj = self.model.objects.get(pk=object_id)
             # Create a field for each translation associated with our object
             fields = []
-            translations = obj.get_translations_all_languages()
+            translations = obj.get_translations()
             for translation in translations:
                 fieldname = create_translation_fieldname(translation)
                 fields.append(fieldname)

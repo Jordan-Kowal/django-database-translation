@@ -1,15 +1,12 @@
 # coding: utf-8
 """
 Description:
-    Contains helper functions and classes for internal work of the application
-Fields:
-    ForeignKeyCascade: ForeignKey set up for CASCADE 'on delete' with index
-    NotEmptyCharField: Charfield that cannot be null nor an empty string
+    Contains helper functions to assist you when working with database translations
 Functions:
-    get_translation_from_item: Returns a Translation object or text when given an Item and a Language
+    all_instances_as_translated_dict: Applies 'instance_as_translated_dict' to the iterable of instances
+    get_language_from_session: Returns the Language instance used by our user, or "False" if none is found
+    instance_as_translated_dict: Returns a model instance into a dict containing all of its fields
     update_user_language: Updates the user current language following Django guildelines
-Managers:
-    NoBulkManager: Prevents the use of the bulk_create method
 """
 
 
@@ -19,98 +16,138 @@ Managers:
 # Built-in
 
 # Django
-from django.apps import apps
 from django.db import models
+from django.db.models.fields.files import ImageFieldFile, FieldFile
 from django.utils.translation import activate, LANGUAGE_SESSION_KEY
 
 # Third-party
 
 # Local
-
-
-# --------------------------------------------------------------------------------
-# > Model Fields
-# --------------------------------------------------------------------------------
-def ForeignKeyCascade(to, *args, **kwargs):
-    """ForeignKey set up for CASCADE 'on delete' with index"""
-    kwargs['db_index'] = True
-    kwargs['on_delete'] = models.CASCADE
-    kwargs['null'] = False
-    return models.ForeignKey(to, *args, **kwargs)
-
-
-def NotEmptyCharField(*args, **kwargs):
-    """Charfield that cannot be null nor an empty string"""
-    kwargs['blank'] = False
-    kwargs['null'] = False
-    return models.CharField(*args, **kwargs)
+from .models import Item, Language, Translation
 
 
 # --------------------------------------------------------------------------------
 # > Functions
 # --------------------------------------------------------------------------------
-def get_translation_from_item(item=None, item_id=None, language=None, language_id=None, as_text=False):
+def all_instances_as_translated_dict(instances, depth=True, language=None, request=None):
     """
     Description:
-        Returns a Translation object or text when given an Item and a Language
-        You must provide either "item" or "item_id"
-        You must provide either "language" or "language_id"
+        Applies 'instance_as_translated_dict' to the iterable of instances
+        Returns a list of dicts which contains the fields of all your instances
+        Check the 'instance_as_translated_dict' for more info
     Args:
-        item (Item, optional): Item instance from the translation app. Defaults to None.
-        item_id (int, optional): ID of the Item instance. Defaults to None.
-        language (Language, optional): Language instance from the translation app. Defaults to None.
-        language_id (int, optional): ID of the Language instance. Defaults to None.
-        as_text (bool, optional): Indicates whether to return the instance or its text. Defaults to False.
-    Raises:
-        TypeError: must provide either 'item' or 'item_id'
-        TypeError: must provide either 'language' or 'language_id'
+        instances (iterable): An iterable of your model instances
+        depth (bool, optional): Determines if FK will also be transformed into dicts. Defaults to True.
+        language (Language, optional): A Language instance from this app. Defaults to None.
+        request (HttpRequest, option): HttpRequest from Django. Defaults to None.
     Returns:
-        Translation/String/None: Either a Translation instance, the Translation's text, or None
+        list: A list of dicts, where each dict contains the fields/values of the initial instances
     """
-    # Checking if we have the right parameters
-    if (not item and not item_id) or (item and item_id):
-        raise TypeError("You must provide either 'item' or 'item_id'. Not none, nor both.")
-    if (not language and not language_id) or (language and language_id):
-        raise TypeError("You must provide either 'language' or 'language_id'. Not none, nor both.")
-    # Keeping only one of each
-    params = {
-        "item": item,
-        "item_id": item_id,
-        "language": language,
-        "language_id": language_id,
-    }
-    params = {key: value for key, value in params.items() if value}
-    # Finding the translation instance and returning it
-    try:
-        translation_model = apps.get_model("django_database_translation", "Translation", True)
-        translation = translation_model.objects.get(**params)
-        if as_text:
-            return translation.text
-        else:
-            return translation
-    except translation_model.DoesNotExist:
-        return None
+    # Checking arguments
+    if language is None and request is None:
+        raise TypeError("You must provide either 'language' or 'request'")
+    # Get the language from the session
+    if language is None:
+        language = get_language_from_session(request)
+    # Loop over instances
+    results = []
+    for instance in instances:
+        result = instance_as_translated_dict(instance, depth=depth, language=language)
+        results.append(result)
+    return results
 
 
-def update_user_language(request, language_id):
+def get_language_from_session(request):
+    """
+    Description:
+        Returns the Language instance used by our user, or "False" if none is found
+    Args:
+        request (HttpRequest): HttpRequest from Django
+    Returns:
+        Language: The currently used language from our app's Language model
+    """
+    language_name = request.session.get(LANGUAGE_SESSION_KEY, False)
+    if language_name:
+        try:
+            language = Language.objects.get(django_language_name=language_name)
+            return language
+        except Language.DoesNotExist:
+            return False
+    return False
+
+
+def instance_as_translated_dict(instance, depth=True, language=None, request=None):
+    """
+    Description:
+        Returns a model instance into a dict containing all of its fields
+        Language can be given as an argument, or guess through the user of "request"
+        With "depth" set to True, ForeignKey will also be transformed into sub-dict
+        Files and images are replaced by a subdict with 'path', 'url', and 'name' keys
+        Meaning you will be able to manipulate the dict in an HTML template much like an instance
+    Args:
+        instance (Model): An instance from any of your models
+        depth (bool, optional): Determines if FK will also be transformed into dicts. Defaults to True.
+        language (Language, optional): A Language instance from this app. Defaults to None.
+        request (HttpRequest, option): HttpRequest from Django. Defaults to None.
+    Returns:
+        dict: A dict with all of the instance's fields and values
+    """
+    # Checking arguments
+    if language is None and request is None:
+        raise TypeError("You must provide either 'language' or 'request'")
+    # Get the language from the session
+    if language is None:
+        language = get_language_from_session(request)
+    # Loop over fields
+    translated_dict = {}
+    fields = instance._meta.get_fields()
+    for field in fields:
+        value = getattr(instance, field.name, None)
+        if value is not None:
+            value_type = type(value)
+            # Case 1: Get the translation
+            if value_type == Item:
+                new_value = Translation.objects.get(item=value, language=language).text
+            # Case 2: Go to the linked model and repeat the process (unless depth=False)
+            elif issubclass(value_type, models.Model):
+                if depth:
+                    new_value = instance_as_translated_dict(value, depth=True, language=language)
+                else:
+                    new_value = value
+            # Case 3:
+            elif value_type in {ImageFieldFile, FieldFile}:
+                if value:
+                    new_value = {
+                        "name": getattr(value, "name", ""),
+                        "url": getattr(value, "url", ""),
+                        "path": getattr(value, "path", ""),
+                    }
+                else:
+                    new_value = ""
+            # Case 4: Keep the value as it is
+            else:
+                new_value = value
+            translated_dict[field.name] = new_value
+    return translated_dict
+
+
+def update_user_language(request, language=None, language_id=None):
     """
     Description:
         Updates the user current language following Django guildelines
         This will allow for both "Django" frontend translations and "our app" database translation
+        The new language must be passed either through a Language instance or an ID
     Args:
         request (HttpRequest): Request object from Django, used to get to the session
-        language_id (id/str): ID of the language in our database
+        language (Language, optional): A Language instance from this app. Defaults to None.
+        language_id (id, optional): ID of the language in our database. Defaults to None.
     """
-    from .models import Language
-    language = Language.objects.get(id=language_id)
+    # Checking arguments
+    if language is None and language_id is None:
+        raise TypeError("You must provide either 'language' or 'language_id'")
+    # Get the language from the session
+    if language is None:
+        language = Language.objects.get(id=language_id)
+    # Update the user's language
     activate(language.django_language_name)
     request.session[LANGUAGE_SESSION_KEY] = language.django_language_name
-
-
-# --------------------------------------------------------------------------------
-# > Model Managers
-# --------------------------------------------------------------------------------
-class NoBulkCreateManager(models.Manager):
-    """Prevents the use of the bulk_create method"""
-    def bulk_create(self, objs, **kwargs):
-        raise NotImplementedError("Cannot use bulk_create on this model")
