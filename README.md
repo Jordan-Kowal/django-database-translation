@@ -48,7 +48,8 @@ First, we must install the package:
 
 - Install the package with `pip install django-database-translation`
 - In `settings.py`, in your `INSTALLED_APPS`, add `"django_database_translation"` (note that we are using **underscores** this time)
-- Then run the `python manage.py migrate` command to create the 4 new tables
+- Then run the `python manage.py makemigrations django_database_translation` command
+- Then run the `python manage.py migrate django_database_translation` command to create the 4 new tables
 
 ### **2. Updating your models**
 The point here is to "flag" which models have fields that must be translated. As a result, we will **extend** the models, and **change** the fields:
