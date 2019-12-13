@@ -36,7 +36,7 @@ Here's a quick recap of what this package contains:
   - `update_user_language`, a function that updates the user language for both django and our app
 - A few tools for getting translations
   - `all_instances_as_translated_dict`: Applies 'instance_as_translated_dict' to the iterable of instances
-  - `get_language_from_session`: Returns the Language instance used by our user, or "False" if none is found
+  - `get_current_language`: Returns the Language instance used by our user, or "False" if none is found
   - `instance_as_translated_dict`: Returns a model instance into a dict containing all of its fields
 
 It contains other elements, but this is what you will be using 99% of the time.
@@ -218,7 +218,7 @@ class UpdateLanguageSelection(View):
 ### **2. Displaying the translations**
 The last thing left to do is to display the translations. Our instances have keys to `Item`, which then have keys to `Translation`. To get the translations, we need to pair an `Item` with a `Language`.
 
-First off, get the language using our `get_language_from_session`. This will return the user's current `Language` instance.
+First off, get the language using our `get_current_language`. This will return the user's current `Language` instance.
 
 Then, before sending your object(s) in the template/context/JSON, translate them using `instance_as_translated_dict` or `all_instances_as_translated_dict`. Your instances will become dictionaries, and your `Item` keys will automatically be replaced with your translated text. Those two functions can either be given a `language`, or guess it themselves by using the `request` arg. If you're going to make several translations in the same functions, get the `language` first. This will avoid making a new database request each time to guess the language.
 
@@ -232,7 +232,7 @@ You'll find below an example with a Project model and a Job model, where we:
 ```python
 from django.utils.translation import gettext
 from django.views.generic import ListView
-from django_database_translation.utils import all_instances_as_translated_dict, get_language_from_session
+from django_database_translation.utils import all_instances_as_translated_dict, get_current_language
 from .models import Job, Project
 
 class ProjectList(ListView):
@@ -267,7 +267,7 @@ class ProjectList(ListView):
 
     def get_queryset(self):
         # We get the language first, then use it for our translation
-        language = get_language_from_session(self.request)
+        language = get_current_language(self.request)
         query = Project.objects.filter(active=True)
         query = all_instances_as_translated_dict(query, depth=True, language=language)
         return query
@@ -293,7 +293,7 @@ def __init__(self, *args, **kwargs):
 def function_inside_your_view(self):
     # (...)
     request = self.request
-    language = get_language_from_session(request)
+    language = get_current_language(request)
     form = self.form_class(request.GET, language=language) # (or .POST, etc.)
     # (...)
 ```
