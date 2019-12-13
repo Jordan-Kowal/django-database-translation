@@ -5,6 +5,7 @@ Description:
 Functions:
     all_instances_as_translated_dict: Applies 'instance_as_translated_dict' to the iterable of instances
     get_current_language: Returns the current active language. Will set a default language if none is found.
+    get_translation: Returns a translated text using an Item id and a Language instance
     instance_as_translated_dict: Returns a model instance into a dict containing all of its fields
     set_default_language: Sets the default language if none is chosen
     update_user_language: Updates the user current language following Django guildelines
@@ -83,6 +84,25 @@ def get_current_language(request, set_default=True, default_id=1):
         language = set_default_language(request, default_id)
     # Always return the active language
     return language
+
+
+def get_translation(language, item_id):
+    """
+    Description:
+        Returns a translated text using an Item id and a Language instance
+    Args:
+        language (Language): Language instance from this app
+        item_id (int): Key contained in the 'translated field'
+    Returns:
+        str: The translated text
+    """
+    translation = ""
+    try:
+        entry = Translation.objects.get(language=language, item_id=item_id)
+        translation = entry.text
+    except Translation.DoesNotExist:
+        pass
+    return translation
 
 
 def instance_as_translated_dict(instance, depth=True, language=None, request=None):
