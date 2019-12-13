@@ -21,7 +21,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 setup(
     # General
     name='django_database_translation',
-    version='1.1.2',
+    version='1.1.3',
     license='MIT',
     # Description
     description='Package to handle database translation in your Django apps',
@@ -32,7 +32,7 @@ setup(
     author_email='kowaljordan@gmail.com',
     # URLs
     url='https://github.com/Jordan-Kowal/django_database_translation',
-    download_url='https://github.com/Jordan-Kowal/django_database_translation/archive/v1.1.2.tar.gz',
+    download_url='https://github.com/Jordan-Kowal/django_database_translation/archive/v1.1.3.tar.gz',
     # Packages
     packages=['django_database_translation'],
     install_requires=[],
