@@ -336,7 +336,7 @@ def all_instances_as_translated_dict(instances, depth=True, language=None, reque
         raise TypeError("You must provide either 'language' or 'request'")
     # Get the language from the session
     if language is None:
-        language = get_language_from_session(request)
+        language = get_current_language(request)
     # Loop over instances
     results = []
     for instance in instances:
@@ -345,23 +345,31 @@ def all_instances_as_translated_dict(instances, depth=True, language=None, reque
     return results
 
 
-def get_language_from_session(request):
+def get_current_language(request, set_default=True, default_id=1):
     """
     Description:
-        Returns the Language instance used by our user, or "False" if none is found
+        Returns the current active language. Will set a default language if none is found.
     Args:
         request (HttpRequest): HttpRequest from Django
+        set_default (Boolean): Indicates if a default language must be activated (if none currently is). Default to True.
+        default_id (Integer): The PK for the default Language instance. Default to 1
     Returns:
         Language: The currently used language from our app's Language model
     """
+    # Base variables
+    language = None
     language_name = request.session.get(LANGUAGE_SESSION_KEY, False)
+    # Get the language
     if language_name:
         try:
             language = Language.objects.get(django_language_name=language_name)
-            return language
         except Language.DoesNotExist:
-            return False
-    return False
+            pass
+    # Set a default language if necessary
+    if language is None and set_default:
+        language = set_default_language(request, default_id)
+    # Always return the active language
+    return language
 
 
 def instance_as_translated_dict(instance, depth=True, language=None, request=None):
@@ -385,7 +393,7 @@ def instance_as_translated_dict(instance, depth=True, language=None, request=Non
         raise TypeError("You must provide either 'language' or 'request'")
     # Get the language from the session
     if language is None:
-        language = get_language_from_session(request)
+        language = get_current_language(request)
     # Loop over fields
     translated_dict = {}
     fields = instance._meta.get_fields()
@@ -417,6 +425,13 @@ def instance_as_translated_dict(instance, depth=True, language=None, request=Non
                 new_value = value
             translated_dict[field.name] = new_value
     return translated_dict
+
+
+def set_default_language(request, pk=1):
+    """Sets the default language if none is chosen"""
+    language = Language.objects.get(id=pk)
+    update_user_language(request, language=language)
+    return language
 
 
 def update_user_language(request, language=None, language_id=None):
