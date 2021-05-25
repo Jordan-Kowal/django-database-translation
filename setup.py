@@ -28,7 +28,7 @@ setup(
     author_email='kowaljordan@gmail.com',
     # URLs
     url='https://github.com/Jordan-Kowal/django_database_translation',
-    download_url=f'https://github.com/Jordan-Kowal/django_database_translation/archive/{VERSION}.tar.gz',
+    download_url=f'https://github.com/Jordan-Kowal/django_database_translation/archive/v{VERSION}.tar.gz',
     # Packages
     packages=packages,
     install_requires=[],
