@@ -1,27 +1,23 @@
-# coding: utf8
-
-
-# --------------------------------------------------------------------------------
-# > Imports
-# --------------------------------------------------------------------------------
-# Built-in
-from setuptools import setup
+"""Setup file for the PyPi packaging"""
 
 # Third-party
+from setuptools import find_packages, setup
 
-# Local
-
+# --------------------------------------------------------------------------------
+# > Variables
+# --------------------------------------------------------------------------------
+VERSION = "1.1.4"
+packages = find_packages()
+with open("README.md", "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 # --------------------------------------------------------------------------------
 # > Functions
 # --------------------------------------------------------------------------------
-with open("README.md", "r", encoding="utf-8") as f:
-    long_description = f.read()
-
 setup(
     # General
     name='django_database_translation',
-    version='1.1.4',
+    version=VERSION,
     license='MIT',
     # Description
     description='Package to handle database translation in your Django apps',
@@ -32,9 +28,9 @@ setup(
     author_email='kowaljordan@gmail.com',
     # URLs
     url='https://github.com/Jordan-Kowal/django_database_translation',
-    download_url='https://github.com/Jordan-Kowal/django_database_translation/archive/v1.1.4.tar.gz',
+    download_url=f'https://github.com/Jordan-Kowal/django_database_translation/archive/{VERSION}.tar.gz',
     # Packages
-    packages=['django_database_translation'],
+    packages=packages,
     install_requires=[],
     # Other info
     keywords=["django", "database", "db", "translation", "translate", "backend"],
