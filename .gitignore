@@ -1,5 +1,6 @@
-### VSCode ###
+### IDE ###
 .vscode
+.idea
 
 ### Django ###
 *.log
