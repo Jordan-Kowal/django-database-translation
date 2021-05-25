@@ -85,9 +85,9 @@ class TranslatedModel(models.Model):
     # ----------------------------------------
     def get_content_type_instance(self):
         """Returns the ContentType instance of our object"""
-        app = self._meta.app_label.lower()
+        app_label = self._meta.app_label
         model = self.__class__.__name__.lower()
-        content_type = ContentType.objects.get(app_label=app, model=model)
+        content_type = ContentType.objects.get(app_label=app_label, model=model)
         return content_type
 
     def get_translated_fields(self):
